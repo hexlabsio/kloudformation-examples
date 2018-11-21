@@ -1,0 +1,20 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Resources:
+  Topic:
+    Type: "AWS::SNS::Topic"
+  DatabaseInitializer:
+    Type: "AWS::CloudFormation::CustomResource"
+    Metadata:
+      SomeKey: "SomeValue"
+    Properties:
+      ServiceToken: "arn:aws::xxxx:xxx"
+      A: "B"
+      C:
+        Ref: "Topic"
+  DatabaseInitializer2:
+    Type: "DBInit"
+    Metadata:
+      SomeKey: "SomeValue"
+    Properties:
+      ServiceToken: "arn:aws::xxxx:xxx"
