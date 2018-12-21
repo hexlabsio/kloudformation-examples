@@ -31,7 +31,7 @@
         <dependency>
             <groupId>io.kloudformation</groupId>
             <artifactId>kloudformation</artifactId>
-            <version>0.1.8</version>
+            <version>0.1.12</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
