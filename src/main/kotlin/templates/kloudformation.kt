@@ -1,3 +1,5 @@
+package templates
+
 import io.kloudformation.KloudFormation
 import io.kloudformation.StackBuilder
 

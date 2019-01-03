@@ -1,3 +1,5 @@
+package templates
+
 import io.kloudformation.Value
 import io.kloudformation.model.iam.PolicyDocument
 

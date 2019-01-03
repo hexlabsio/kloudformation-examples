@@ -32,11 +32,16 @@
             <groupId>io.kloudformation</groupId>
             <artifactId>kloudformation</artifactId>
             <version>0.1.12</version>
-            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib</artifactId>
+            <version>${kotlin.version}</version>
         </dependency>
     </dependencies>
 
     <build>
+        <sourceDirectory>${project.basedir}/src/main/kotlin</sourceDirectory>
         <plugins>
             <plugin>
                 <artifactId>kotlin-maven-plugin</artifactId>
@@ -48,23 +53,12 @@
                         <goals>
                             <goal>compile</goal>
                         </goals>
-                        <configuration>
-                            <sourceDirs>
-                                <sourceDir>${project.basedir}/src/main/kotlin</sourceDir>
-                            </sourceDirs>
-                        </configuration>
                     </execution>
                     <execution>
                         <id>test-compile</id>
                         <goals>
                             <goal>test-compile</goal>
                         </goals>
-                        <configuration>
-                            <sourceDirs>
-                                <sourceDir>${project.basedir}/src/test/kotlin</sourceDir>
-                                <sourceDir>${project.basedir}/src/stack</sourceDir>
-                            </sourceDirs>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -81,7 +75,7 @@
                         <configuration>
                             <mainClass>io.kloudformation.StackBuilderKt</mainClass>
                             <arguments>
-                                <argument>Stack</argument>
+                                <argument>templates.Stack</argument>
                                 <argument>${project.basedir}/template.yml</argument>
                             </arguments>
                             <classpathScope>test</classpathScope>
