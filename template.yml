@@ -1,20 +1,59 @@
 ---
 AWSTemplateFormatVersion: "2010-09-09"
 Resources:
-  Topic:
-    Type: "AWS::SNS::Topic"
-  DatabaseInitializer:
-    Type: "AWS::CloudFormation::CustomResource"
-    Metadata:
-      SomeKey: "SomeValue"
+  Bucket:
+    Type: "AWS::S3::Bucket"
     Properties:
-      ServiceToken: "arn:aws::xxxx:xxx"
-      A: "B"
-      C:
-        Ref: "Topic"
-  DatabaseInitializer2:
-    Type: "DBInit"
-    Metadata:
-      SomeKey: "SomeValue"
+      AccessControl: "PublicRead"
+      WebsiteConfiguration:
+        ErrorDocument: "index.html"
+        IndexDocument: "index.html"
+  BucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
     Properties:
-      ServiceToken: "arn:aws::xxxx:xxx"
+      Bucket:
+        Ref: "Bucket"
+      PolicyDocument:
+        Statement:
+        - Effect: "Allow"
+          Action:
+          - "s3:GetObject"
+          Resource:
+          - Fn::Join:
+            - ""
+            - - "arn:aws:s3:::"
+              - Ref: "Bucket"
+              - "/*"
+          Principal: "*"
+  Bucket2:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      AccessControl: "PublicRead"
+      BucketName: "MyBucket"
+      WebsiteConfiguration:
+        ErrorDocument: "404.html"
+        IndexDocument: "index.html"
+  BucketPolicy2:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket:
+        Ref: "Bucket2"
+      PolicyDocument:
+        Statement:
+        - Effect: "Allow"
+          Action:
+          - "s3:GetObject"
+          Resource:
+          - Fn::Join:
+            - ""
+            - - "arn:aws:s3:::"
+              - Ref: "Bucket2"
+              - "/*"
+          Principal: "*"
+  Bucket3:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      AccessControl: "PublicRead"
+      WebsiteConfiguration:
+        ErrorDocument: "index.html"
+        IndexDocument: "index.html"
