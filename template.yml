@@ -36,8 +36,7 @@ Resources:
   BucketPolicy2:
     Type: "AWS::S3::BucketPolicy"
     Properties:
-      Bucket:
-        Ref: "Bucket2"
+      Bucket: ""
       PolicyDocument:
         Statement:
         - Effect: "Allow"
@@ -57,3 +56,154 @@ Resources:
       WebsiteConfiguration:
         ErrorDocument: "index.html"
         IndexDocument: "index.html"
+  Bucket4:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      AccessControl: "PublicRead"
+      WebsiteConfiguration:
+        ErrorDocument: "index.html"
+        IndexDocument: "index.html"
+  BucketPolicy3:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket:
+        Ref: "Bucket4"
+      PolicyDocument:
+        Statement:
+        - Effect: "Allow"
+          Action:
+          - "s3:GetObject"
+          Resource:
+          - Fn::Join:
+            - ""
+            - - "arn:aws:s3:::"
+              - Ref: "Bucket4"
+              - "/*"
+          Principal: "*"
+  Certificate:
+    Type: "AWS::CertificateManager::Certificate"
+    Properties:
+      DomainName: "klouds.io"
+      DomainValidationOptions:
+      - DomainName: "klouds.io"
+        ValidationDomain: "klouds.io"
+      SubjectAlternativeNames:
+      - "klouds.io"
+      ValidationMethod: "DNS"
+  Distribution:
+    Type: "AWS::CloudFront::Distribution"
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Aliases:
+        - Fn::Join:
+          - ""
+          - - "www."
+            - "klouds.io"
+        - "klouds.io"
+        DefaultCacheBehavior:
+          ForwardedValues:
+            QueryString: true
+          TargetOriginId: "s3Origin"
+          ViewerProtocolPolicy: "allow-all"
+          AllowedMethods:
+          - "GET"
+          - "HEAD"
+          - "OPTIONS"
+        DefaultRootObject: "index.html"
+        HttpVersion: "http2"
+        Origins:
+        - DomainName:
+            Fn::Join:
+            - ""
+            - - Ref: "Bucket4"
+              - ".s3-website-"
+              - Ref: "AWS::Region"
+              - ".amazonaws.com"
+          Id: "s3Origin"
+          CustomOriginConfig:
+            OriginProtocolPolicy: "http-only"
+        PriceClass: "PriceClass_200"
+        ViewerCertificate:
+          AcmCertificateArn:
+            Ref: "Certificate"
+          SslSupportMethod: "sni-only"
+  Bucket5:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      AccessControl: "PublicRead"
+      WebsiteConfiguration:
+        ErrorDocument: "index.html"
+        IndexDocument: "index.html"
+  BucketPolicy4:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket:
+        Ref: "Bucket5"
+      PolicyDocument:
+        Statement:
+        - Effect: "Allow"
+          Action:
+          - "s3:GetObject"
+          Resource:
+          - Fn::Join:
+            - ""
+            - - "arn:aws:s3:::"
+              - Ref: "Bucket5"
+              - "/*"
+          Principal: "*"
+  Certificate2:
+    Type: "AWS::CertificateManager::Certificate"
+    Properties:
+      DomainName: "klouds.io"
+      DomainValidationOptions:
+      - DomainName: "klouds.io"
+        ValidationDomain: "klouds.io"
+      SubjectAlternativeNames:
+      - "klouds.io"
+      ValidationMethod: "DNS"
+  Distribution2:
+    Type: "AWS::CloudFront::Distribution"
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Aliases:
+        - Fn::Join:
+          - ""
+          - - "www."
+            - "klouds.io"
+        - "klouds.io"
+        DefaultCacheBehavior:
+          ForwardedValues:
+            QueryString: true
+          TargetOriginId: "s3Origin"
+          ViewerProtocolPolicy: "allow-all"
+          AllowedMethods:
+          - "GET"
+          - "HEAD"
+          - "OPTIONS"
+        DefaultRootObject:
+          Fn::Join:
+          - ""
+          - - "another"
+            - "index.html"
+        HttpVersion: "http2"
+        Origins:
+        - DomainName:
+            Fn::Join:
+            - ""
+            - - Ref: "Bucket5"
+              - ".s3-website-"
+              - Ref: "AWS::Region"
+              - ".amazonaws.com"
+          Id: "s3Origin"
+          CustomOriginConfig:
+            OriginProtocolPolicy: "http-only"
+        PriceClass: "PriceClass_200"
+        ViewerCertificate:
+          AcmCertificateArn:
+            Ref: "Certificate2"
+          SslSupportMethod: "sni-only"
+      Tags:
+      - Key: "A"
+        Value: "B"
