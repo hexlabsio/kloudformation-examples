@@ -6,16 +6,16 @@ import io.kloudformation.function.plus
 import io.kloudformation.model.KloudFormationTemplate.Builder.Companion.awsRegion
 import io.kloudformation.model.iam.PolicyDocument
 import io.kloudformation.model.iam.policyDocument
-import io.kloudformation.property.certificatemanager.certificate.DomainValidationOption
-import io.kloudformation.property.cloudfront.distribution.*
-import io.kloudformation.resource.certificatemanager.Certificate
-import io.kloudformation.resource.certificatemanager.certificate
-import io.kloudformation.resource.cloudfront.Distribution
-import io.kloudformation.resource.cloudfront.distribution
-import io.kloudformation.resource.s3.Bucket
-import io.kloudformation.resource.s3.BucketPolicy
-import io.kloudformation.resource.s3.bucket
-import io.kloudformation.resource.s3.bucketPolicy
+import io.kloudformation.property.aws.certificatemanager.certificate.DomainValidationOption
+import io.kloudformation.property.aws.cloudfront.distribution.*
+import io.kloudformation.resource.aws.certificatemanager.Certificate
+import io.kloudformation.resource.aws.certificatemanager.certificate
+import io.kloudformation.resource.aws.cloudfront.Distribution
+import io.kloudformation.resource.aws.cloudfront.distribution
+import io.kloudformation.resource.aws.s3.Bucket
+import io.kloudformation.resource.aws.s3.BucketPolicy
+import io.kloudformation.resource.aws.s3.bucket
+import io.kloudformation.resource.aws.s3.bucketPolicy
 
 
 class S3Website {
@@ -71,6 +71,7 @@ class S3Website {
                 ))
                 val cfDistribution = cloudFrontDistribution(distributionProps){ props ->
                     distribution(props.config) {
+
                         modifyBuilder(props)
                     }
                 }
