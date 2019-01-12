@@ -21,9 +21,19 @@ class ServerlessFunction(val logGroup: LogGroup, val role: Role?, val function: 
             val handler: Value<String>,
             val runtime: Value<String>,
             val globalBucket: Bucket,
-            val globalRole: Role? = null
+            val globalRole: Role? = null,
+            val privateConfig: Serverless.PrivateConfig? = null
     ): Props
 
+    class HttpProps(
+            val method: String,
+            val cors: HttpModule.CorsConfig? = null,
+            val vpcEndpoint: Value<String>? = null
+    ): PartialProps<HttpModule.HttpFullProps, Serverless.Globals> {
+        override fun fullProps(extraProps: Serverless.Globals): HttpModule.HttpFullProps {
+            return HttpModule.HttpFullProps(method, extraProps.serviceName, extraProps.stage, cors, vpcEndpoint)
+        }
+    }
 
     class Parts(
             val lambdaLogGroup: Modification<LogGroup.Builder, LogGroup, LogGroupProps> = modification(),
@@ -32,6 +42,10 @@ class ServerlessFunction(val logGroup: LogGroup, val role: Role?, val function: 
     ){
         data class LogGroupProps(var name: Value<String>): Props
         data class LambdaProps(var code: Code, var handler: Value<String>, var role: Value<String>, var runtime: Value<String>): Props
+
+        val http = SubModules<HttpModule, HttpModule.Parts, HttpModule.Builder, HttpProps, HttpModule.HttpFullProps, Serverless.Globals>(
+                builder = { props -> HttpModule.Builder(props)}
+        )
     }
     class Builder(
             val builderProps: FuncProps
@@ -53,10 +67,17 @@ class ServerlessFunction(val logGroup: LogGroup, val role: Role?, val function: 
             val lambdaResource = lambdaFunction(Parts.LambdaProps(code,builderProps.handler,roleResource?.ref() ?: +"",builderProps.runtime)) { props ->
                 function(props.code, props.handler, props.role, props.runtime,
                         dependsOn = kotlin.collections.listOfNotNull(logGroupResource.logicalName, roleResource?.logicalName)){
+                    builderProps.privateConfig?.let { config ->
+                        if(config.securityGroups != null && config.subnetIds != null){
+                            vpcConfig(config.securityGroups, config.subnetIds)
+                        }
+                    }
                     modifyBuilder(props)
                 }
             }
-
+            http.modules().forEach{
+                it.module(Serverless.Globals(builderProps.serviceName, builderProps.stage))()
+            }
             ServerlessFunction(logGroupResource, roleResource, lambdaResource)
         }
     }

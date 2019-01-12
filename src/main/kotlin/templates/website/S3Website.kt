@@ -12,6 +12,7 @@ import io.kloudformation.resource.aws.s3.BucketPolicy
 import io.kloudformation.resource.aws.s3.bucket
 import io.kloudformation.resource.aws.s3.bucketPolicy
 import templates.*
+
 data class S3Website(val bucket: Bucket, val policy: BucketPolicy?): Module, ExtraParts {
 
     class Parts(
@@ -49,7 +50,6 @@ data class S3Website(val bucket: Bucket, val policy: BucketPolicy?): Module, Ext
                         errorDocument(props.errorDocument)
                     }
                     modifyBuilder(props)
-                    this
                 }
             }
             val policyProps = Parts.PolicyProps(bucket.ref(), policyDocument {
@@ -64,7 +64,6 @@ data class S3Website(val bucket: Bucket, val policy: BucketPolicy?): Module, Ext
                         policyDocument = props.policyDocument
                 ) {
                     modifyBuilder(props)
-                    this
                 }
             }
             val website = S3Website(bucket, policy)
