@@ -4,6 +4,10 @@ import io.kloudformation.KloudFormation
 import io.kloudformation.StackBuilder
 import io.kloudformation.function.plus
 import io.kloudformation.property.Tag
+import templates.serverless.Serverless
+import templates.serverless.serverless
+import templates.website.S3Website
+import templates.website.s3Website
 
 
 class Stack: StackBuilder {
@@ -32,12 +36,13 @@ class Stack: StackBuilder {
 
         // S3 Website with klouds.io domain attached to a cloudfront distribution
         s3Website {
-            domain("klouds.io")
+            s3Distribution(S3Website.Parts.DistributionProps(+"klouds.io"))
         }
+
         val cert = "certFromSomewhereElse"
         // S3 Website with klouds.io domain attached to a cloudfront distribution with root object changed and tags added to distribution
         s3Website {
-            domain("klouds.io"){
+            s3Distribution(S3Website.Parts.DistributionProps(+"klouds.io")){
                 props { this.defaultRootObject = +"another" + defaultRootObject }
                 modify {
                     bucketCertificate { remove() }
@@ -53,18 +58,31 @@ class Stack: StackBuilder {
 
     }
     override fun KloudFormation.create() {
+        //s3WebsiteExamples()
         serverless("myService") {
             globalRole {
                 modify { path("/anotherPath/") }
             }
-            serverlessFunction(
+            serverlessFunction(Serverless.FuncProps(
                     codeLocationKey = parameter<String>("CodeLocationKey").ref(),
                     functionId = "myFunction",
-                    serviceName = "myService",
-                    stage = "dev",
                     handler = +"org.http4k.serverless.lambda.LambdaFunction::handle",
-                    runtime = +"java8"
+                    runtime = +"java8")
             )
+            serverlessFunction(Serverless.FuncProps(
+                    codeLocationKey = parameter<String>("CodeLocationKey2").ref(),
+                    functionId = "myFunction2",
+                    handler = +"org.http4k.serverless.lambda.LambdaFunction::handle",
+                    runtime = +"java8")
+            ){
+                modify {
+                    lambdaRole {
+                        modify {
+                            path("/SomewhereElse/")
+                        }
+                    }
+                }
+            }
         }
         // Run mvn package to produce template.yml (also checked in for reference)
     }
