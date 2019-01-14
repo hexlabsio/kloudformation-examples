@@ -11,73 +11,55 @@ import io.kloudformation.resource.aws.logs.logGroup
 import io.kloudformation.resource.aws.s3.Bucket
 import templates.*
 
-class ServerlessFunction(val logGroup: LogGroup, val role: Role?, val function: Function) : Module {
+class ServerlessFunction(val logGroup: LogGroup, val role: Role?, val function: Function, val httpEvents: List<HttpModule>) : Module {
 
-    class FuncProps(
-            val functionId: String,
-            val serviceName: String,
-            val stage: String,
-            val codeLocationKey: Value<String>,
-            val handler: Value<String>,
-            val runtime: Value<String>,
-            val globalBucket: Bucket,
-            val globalRole: Role? = null,
-            val privateConfig: Serverless.PrivateConfig? = null
-    ): Props
+    class Predefined(var serviceName: String, var stage: String, var deploymentBucket: Bucket, var globalRole: Role?, var privateConfig: Serverless.PrivateConfig?): Properties
+    class Props(val functionId: String, val codeLocationKey: Value<String>, val handler: Value<String>, val runtime: Value<String>, val privateConfig: Serverless.PrivateConfig? = null): Properties
 
-    class HttpProps(
-            val cors: HttpModule.CorsConfig? = null,
-            val vpcEndpoint: Value<String>? = null
-    ): PartialProps<HttpModule.HttpFullProps, Serverless.Globals> {
-        override fun fullProps(extraProps: Serverless.Globals): HttpModule.HttpFullProps {
-            return HttpModule.HttpFullProps(extraProps.serviceName, extraProps.stage, cors, vpcEndpoint)
-        }
-    }
-
-    class Parts(
-            val lambdaLogGroup: Modification<LogGroup.Builder, LogGroup, LogGroupProps> = modification(),
-            val lambdaRole: OptionalModification<Role.Builder, Role, Serverless.Parts.RoleProps> = optionalModification(absent = true),
-            val lambdaFunction: Modification<Function.Builder, Function, LambdaProps> = modification()
-    ){
-        data class LogGroupProps(var name: Value<String>): Props
-        data class LambdaProps(var code: Code, var handler: Value<String>, var role: Value<String>, var runtime: Value<String>): Props
-        val http = SubModules<HttpModule, HttpModule.Parts, HttpModule.Builder, HttpProps, HttpModule.HttpFullProps, Serverless.Globals>(
-                builder = { props -> HttpModule.Builder(props)}
-        )
+    class Parts{
+        data class LambdaProps(var code: Code, var handler: Value<String>, var role: Value<String>, var runtime: Value<String>): Properties
+        val lambdaLogGroup = modification<LogGroup.Builder, LogGroup, NoProps>()
+        val lambdaRole = optionalModification<Role.Builder, Role, Serverless.Parts.RoleProps>(absent = true)
+        val lambdaFunction = modification<Function.Builder, Function, LambdaProps>()
+        val http = SubModules({ pre: HttpModule.Predefined, props: HttpModule.Props -> HttpModule.Builder(pre, props)})
     }
 
     class Builder(
-            val builderProps: FuncProps
-    ): ModuleBuilder<ServerlessFunction, Parts>(Parts()){
+            pre: Predefined,
+            val props: Props
+    ): SubModuleBuilder<ServerlessFunction, Parts, Predefined, Props>(pre, Parts()){
 
         override fun KloudFormation.buildModule(): Parts.() -> ServerlessFunction = {
-            val logGroupResource = lambdaLogGroup(Parts.LogGroupProps(name = +"/aws/lambda/${builderProps.serviceName}-${builderProps.stage}-${builderProps.functionId}")) { props ->
+            val logGroupResource = lambdaLogGroup(NoProps) {
                 logGroup {
-                    logGroupName(props.name)
-                    modifyBuilder(props)
+                    logGroupName(+"/aws/lambda/${pre.serviceName}-${pre.stage}-${props.functionId}")
+                    modifyBuilder(it)
                 }
             }
             val code = Code(
-                    s3Bucket = builderProps.globalBucket.ref(),
-                    s3Key = builderProps.codeLocationKey
+                    s3Bucket = pre.deploymentBucket.ref(),
+                    s3Key = props.codeLocationKey
             )
-            if(builderProps.globalRole == null) lambdaRole.keep()
-            val roleResource = Serverless.Builder.run { roleFor(builderProps.serviceName, builderProps.stage, lambdaRole) } ?: builderProps.globalRole
-            val lambdaResource = lambdaFunction(Parts.LambdaProps(code,builderProps.handler,roleResource?.ref() ?: +"",builderProps.runtime)) { props ->
+            if(pre.globalRole == null) lambdaRole.keep()
+            val roleResource = Serverless.Builder.run { roleFor(pre.serviceName, pre.stage, lambdaRole) } ?: pre.globalRole
+            val lambdaResource = lambdaFunction(Parts.LambdaProps(code,props.handler,roleResource?.ref() ?: +"",props.runtime)) { props ->
                 function(props.code, props.handler, props.role, props.runtime,
-                        dependsOn = kotlin.collections.listOfNotNull(logGroupResource.logicalName, roleResource?.logicalName)){
-                    builderProps.privateConfig?.let { config ->
-                        if(config.securityGroups != null && config.subnetIds != null){
-                            vpcConfig(config.securityGroups, config.subnetIds)
+                        dependsOn = listOfNotNull(logGroupResource.logicalName, roleResource?.logicalName)) {
+                    val privateOverride = this@Builder.props.privateConfig
+                    if (privateOverride !is Serverless.NoPrivateConfig) {
+                        (privateOverride ?: pre.privateConfig)?.let { config ->
+                            if (config.securityGroups != null && config.subnetIds != null) {
+                                vpcConfig(config.securityGroups, config.subnetIds)
+                            }
                         }
                     }
                     modifyBuilder(props)
                 }
             }
-            http.modules().forEach{
-                it.module(Serverless.Globals(builderProps.serviceName, builderProps.stage))()
+            val httpEvents = http.modules().mapNotNull{
+                it.module(HttpModule.Predefined(pre.serviceName, pre.stage))()
             }
-            ServerlessFunction(logGroupResource, roleResource, lambdaResource)
+            ServerlessFunction(logGroupResource, roleResource, lambdaResource, httpEvents)
         }
     }
 }

@@ -1,15 +1,18 @@
 package templates
 
 import io.kloudformation.KloudFormation
+import io.kloudformation.Value
 
 typealias Builder<Parts> = KloudFormation.(Parts.()->Unit) -> Unit
 
-interface Props
-class NoProps: Props
+interface Properties
+object NoProps: Properties
 
-interface Mod<T, R, P: Props>
+interface Mod<T, R, P: Properties>
 
-abstract class Modification<T, R, P: Props>: Mod<T,R,P>{
+fun <T> Value<T>.value() = (this as Value.Of<T>).value
+
+abstract class Modification<T, R, P: Properties>: Mod<T,R,P>{
     open var item: R? = null
     open var replaceWith: R? = null
     open var modifyBuilder: T.(P) -> T = { this }
@@ -30,7 +33,7 @@ abstract class Modification<T, R, P: Props>: Mod<T,R,P>{
     fun replaceWith(item: R){ replaceWith = item }
 }
 
-abstract class OptionalModification<T, R, P: Props>(private var remove: Boolean = false): Mod<T,R,P>{
+abstract class OptionalModification<T, R, P: Properties>(private var remove: Boolean = false): Mod<T,R,P>{
     open var item: R? = null
     open var replaceWith: R? = null
     open var modifyBuilder: T.(P) -> T = { this }
@@ -56,16 +59,18 @@ abstract class OptionalModification<T, R, P: Props>(private var remove: Boolean 
     fun replaceWith(item: R){ replaceWith = item }
 }
 
-fun <Builder, R, P: Props> modification() = object: Modification<Builder, R, P>(){}
-fun <Builder, R, P: Props> optionalModification(absent: Boolean = false) = (object: OptionalModification<Builder, R, P>(){}).apply {
+fun <Builder, R, P: Properties> modification() = object: Modification<Builder, R, P>(){}
+fun <Builder, R, P: Properties> optionalModification(absent: Boolean = false) = (object: OptionalModification<Builder, R, P>(){}).apply {
     if(absent) remove()
 }
 
 fun <Builds: Module, Parts> builder(builder: ModuleBuilder<Builds, Parts>): Builder<Parts> = {
     builder.run { create(it) }
 }
+fun <Builds: Module, Parts, Predefined: Properties, Props: Properties> KloudFormation.builder(builder: SubModuleBuilder<Builds, Parts, Predefined, Props>, partBuilder: Parts.()->Unit): Builds =
+        builder.run { create(partBuilder) }
 fun <Builds: Module, Parts> KloudFormation.builder(builder: ModuleBuilder<Builds, Parts>, partBuilder: Parts.()->Unit): Builds =
-    builder.run { create(partBuilder) }
+        builder.run { create(partBuilder) }
 
 interface Module
 
@@ -76,42 +81,39 @@ abstract class ModuleBuilder<Builds: Module, Parts>(val parts: Parts){
     abstract fun KloudFormation.buildModule(): Parts.() -> Builds
 }
 
+abstract class SubModuleBuilder<Builds: Module, Parts, Predefined: Properties, Props: Properties>(val pre: Predefined, parts: Parts): ModuleBuilder<Builds, Parts>(parts)
 
-interface ExtraParts
 
-interface PartialProps<P:Props, X: ExtraParts>{
-    fun fullProps(extraProps: X): P
-}
-
-class SubModules<Builds: Module, Parts, Builder: ModuleBuilder<Builds, Parts>, UserProps: PartialProps<P,X>, P: Props, X: ExtraParts>(
-        val builder: (P) -> Builder,
-        private val subModules: MutableList<SubModule<Builds, Parts, Builder, UserProps, P, X>> = mutableListOf()
+class SubModules<Builds: Module, Parts, Predefined: Properties, UserProps: Properties>(
+        val builder: (Predefined, UserProps) -> SubModuleBuilder<Builds, Parts, Predefined, UserProps>,
+        private val subModules: MutableList<SubModule<Builds, Parts, Predefined, UserProps>> = mutableListOf()
 ){
-    operator fun invoke(props: UserProps, modifications: Modification<Parts,Builds,P>.() -> Unit = {}){
-        val module: SubModule<Builds, Parts, Builder, UserProps, P, X> = SubModule(builder)
+    operator fun invoke(props: UserProps, modifications: Modification<Parts,Builds,Predefined>.() -> Unit = {}){
+        val module: SubModule<Builds, Parts, Predefined, UserProps> = SubModule(builder)
         module(props, modifications)
         subModules.add(module)
     }
-    fun modules() = subModules
+    fun modules(): List<SubModule<Builds, Parts, Predefined, UserProps>> = subModules
 }
 
-class SubModule<Builds: Module, Parts, Builder: ModuleBuilder<Builds, Parts>, UserProps: PartialProps<P,X>, P: Props, X: ExtraParts>(
-        val builder: (P) -> Builder,
-        private var modification: Modification<Parts,Builds,P> = modification(),
-        private var subModule: (KloudFormation.(X) -> Builds)? = null
+class SubModule<Builds: Module, Parts, Predefined: Properties, UserProps: Properties>(
+        val builder: (Predefined, UserProps) -> SubModuleBuilder<Builds, Parts, Predefined, UserProps>,
+        private var modification: Modification<Parts,Builds, Predefined> = modification(),
+        private var subModule: (KloudFormation.(Predefined) -> Builds)? = null
 ){
 
-    fun module(extraParts: X): KloudFormation.() -> Unit = {
-        subModule?.invoke(this,extraParts)
+    fun module(pre: Predefined): KloudFormation.() -> Builds? = {
+        subModule?.invoke(this,pre)
     }
-    operator fun KloudFormation.invoke(extraParts: X): Builds? = subModule?.invoke(this, extraParts)
+    operator fun KloudFormation.invoke(pre: Predefined): Builds? = subModule?.invoke(this, pre)
 
-    operator fun invoke(props: UserProps, modifications: Modification<Parts,Builds,P>.() -> Unit = {}){
-        subModule = { subProps ->
-            modification(props.fullProps(subProps)) { props ->
+    operator fun invoke(props: UserProps, modifications: Modification<Parts,Builds,Predefined>.() -> Unit = {}){
+        subModule = { pre ->
+            modification(pre) { preProps ->
                 apply(modifications)
-                with(builder(props)){
-                    this.parts.modifyBuilder(props)
+                modifyProps(preProps)
+                with(builder(preProps,props)){
+                    this.parts.modifyBuilder(preProps)
                     create { }
                 }
             }

@@ -14,34 +14,18 @@ import io.kloudformation.resource.aws.s3.Bucket
 import io.kloudformation.resource.aws.s3.bucket
 import templates.*
 
-class Serverless(val serviceName: String, val stage: String, val privateConfig: PrivateConfig?, val bucket: Bucket, val lambdaRole: Role?): Module, ExtraParts {
-
-    class Globals(val serviceName: String, val stage: String): ExtraParts
+class Serverless(val deploymentBucket: Bucket, val globalRole: Role?, val functions: List<ServerlessFunction>): Module {
 
     open class PrivateConfig(val securityGroups: Value<List<Value<String>>>? = null, val subnetIds: Value<List<Value<String>>>? = null)
     object NoPrivateConfig: PrivateConfig()
 
-    class FuncProps(val functionId: String,
-                    val codeLocationKey: Value<String>,
-                    val handler: Value<String>,
-                    val runtime: Value<String>,
-                    val privateConfig: PrivateConfig? = null
-    ): PartialProps<ServerlessFunction.FuncProps, Serverless> {
-        override fun fullProps(extraProps: Serverless): ServerlessFunction.FuncProps {
-            val private = if(privateConfig is NoPrivateConfig) null else privateConfig ?: extraProps.privateConfig
-            return ServerlessFunction.FuncProps(functionId,extraProps.serviceName,extraProps.stage,codeLocationKey,handler,runtime,extraProps.bucket,extraProps.lambdaRole, private)
-        }
-    }
-
     class Parts(
-            val deploymentBucket: Modification<Bucket.Builder, Bucket, BucketProps> = modification(),
+            val deploymentBucket: Modification<Bucket.Builder, Bucket, NoProps> = modification(),
             val globalRole: OptionalModification<Role.Builder, Role, RoleProps> = optionalModification(absent = true)
     ){
-        val serverlessFunction = SubModules<ServerlessFunction, ServerlessFunction.Parts, ServerlessFunction.Builder,FuncProps, ServerlessFunction.FuncProps, Serverless>(
-                builder = { props -> ServerlessFunction.Builder(props)}
-        )
-        class BucketProps: Props
-        data class RoleProps(var assumedRolePolicyDocument: PolicyDocument): Props
+        val serverlessFunction = SubModules({ pre: ServerlessFunction.Predefined, props: ServerlessFunction.Props -> ServerlessFunction.Builder(pre, props)} )
+
+        data class RoleProps(var assumedRolePolicyDocument: PolicyDocument): Properties
     }
 
     class Builder(
@@ -51,17 +35,16 @@ class Serverless(val serviceName: String, val stage: String, val privateConfig: 
     ): ModuleBuilder<Serverless, Parts>(Parts()){
 
         override fun KloudFormation.buildModule(): Parts.() -> Serverless = {
-            val bucketResource = deploymentBucket(Serverless.Parts.BucketProps()){ props ->
+            val bucketResource = deploymentBucket(NoProps){ props ->
                 bucket {
                     modifyBuilder(props)
                 }
             }
             val roleResource = roleFor(serviceName, stage, globalRole)
-            val serverless = Serverless(serviceName, stage, privateConfig, bucketResource,roleResource)
-            serverlessFunction.modules().forEach{
-                it.module(serverless)()
+            val functions = serverlessFunction.modules().mapNotNull {
+                it.module(ServerlessFunction.Predefined(serviceName, stage, bucketResource, roleResource, privateConfig))()
             }
-            serverless
+            Serverless(bucketResource, roleResource, functions)
         }
 
         companion object {

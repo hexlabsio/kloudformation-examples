@@ -1,29 +1,183 @@
 ---
 AWSTemplateFormatVersion: "2010-09-09"
 Parameters:
-  VPCId:
-    Type: "String"
-  Subnets:
-    Type: "List<AWS::EC2::Subnet::Id>"
-  CodeLocationKey:
-    Type: "String"
   CodeLocationKey2:
     Type: "String"
 Resources:
-  SecurityGroup:
-    Type: "AWS::EC2::SecurityGroup"
-    Properties:
-      GroupDescription: "SG for lambda in VPC"
-      GroupName: "UniqueGroupName"
-      SecurityGroupIngress:
-      - IpProtocol: "tcp"
-        CidrIp: "0.0.0.0/0"
-        FromPort: 443
-        ToPort: 443
-      VpcId:
-        Ref: "VPCId"
   Bucket:
     Type: "AWS::S3::Bucket"
+    Properties:
+      AccessControl: "PublicRead"
+      WebsiteConfiguration:
+        ErrorDocument: "index.html"
+        IndexDocument: "index.html"
+  BucketPolicy:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket:
+        Ref: "Bucket"
+      PolicyDocument:
+        Statement:
+        - Effect: "Allow"
+          Action:
+          - "s3:GetObject"
+          Resource:
+          - Fn::Join:
+            - ""
+            - - "arn:aws:s3:::"
+              - Ref: "Bucket"
+              - "/*"
+          Principal: "*"
+  Bucket2:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      AccessControl: "PublicRead"
+      BucketName: "MyBucket"
+      WebsiteConfiguration:
+        ErrorDocument: "404.html"
+        IndexDocument: "index.html"
+  BucketPolicy2:
+    Type: "AWS::S3::BucketPolicy"
+    Properties:
+      Bucket: ""
+      PolicyDocument:
+        Statement:
+        - Effect: "Allow"
+          Action:
+          - "s3:GetObject"
+          Resource:
+          - Fn::Join:
+            - ""
+            - - "arn:aws:s3:::"
+              - Ref: "Bucket2"
+              - "/*"
+          Principal: "*"
+  Bucket3:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      AccessControl: "PublicRead"
+      BucketName: "MyBucket"
+      WebsiteConfiguration:
+        ErrorDocument: "404.html"
+        IndexDocument: "index.html"
+  Bucket4:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      AccessControl: "PublicRead"
+      BucketName: "MyBucket"
+      WebsiteConfiguration:
+        ErrorDocument: "404.html"
+        IndexDocument: "index.html"
+  Certificate:
+    Type: "AWS::CertificateManager::Certificate"
+    Properties:
+      DomainName: "klouds.io"
+      DomainValidationOptions:
+      - DomainName: "klouds.io"
+        ValidationDomain: "klouds.io"
+      SubjectAlternativeNames:
+      - "klouds.io"
+      ValidationMethod: "DNS"
+  Distribution:
+    Type: "AWS::CloudFront::Distribution"
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Aliases:
+        - Fn::Join:
+          - ""
+          - - "www."
+            - "klouds.io"
+        - "klouds.io"
+        DefaultCacheBehavior:
+          ForwardedValues:
+            QueryString: true
+          TargetOriginId: "s3Origin"
+          ViewerProtocolPolicy: "allow-all"
+          AllowedMethods:
+          - "GET"
+          - "HEAD"
+          - "OPTIONS"
+        DefaultRootObject: "index.html"
+        HttpVersion: "http2"
+        Origins:
+        - DomainName:
+            Fn::Join:
+            - ""
+            - - Ref: "Bucket4"
+              - ".s3-website-"
+              - Ref: "AWS::Region"
+              - ".amazonaws.com"
+          Id: "s3Origin"
+          CustomOriginConfig:
+            OriginProtocolPolicy: "http-only"
+        PriceClass: "PriceClass_200"
+        ViewerCertificate:
+          AcmCertificateArn:
+            Ref: "Certificate"
+          SslSupportMethod: "sni-only"
+  Bucket5:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      AccessControl: "PublicRead"
+      BucketName: "MyBucket"
+      WebsiteConfiguration:
+        ErrorDocument: "404.html"
+        IndexDocument: "index.html"
+  Certificate2:
+    Type: "AWS::CertificateManager::Certificate"
+    Properties:
+      DomainName: "klouds.io"
+      DomainValidationOptions:
+      - DomainName: "klouds.io"
+        ValidationDomain: "klouds.io"
+      SubjectAlternativeNames:
+      - "klouds.io"
+      ValidationMethod: "DNS"
+  Distribution2:
+    Type: "AWS::CloudFront::Distribution"
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Aliases:
+        - Fn::Join:
+          - ""
+          - - "www."
+            - "klouds.io"
+        - "klouds.io"
+        DefaultCacheBehavior:
+          ForwardedValues:
+            QueryString: true
+          TargetOriginId: "s3Origin"
+          ViewerProtocolPolicy: "allow-all"
+          AllowedMethods:
+          - "GET"
+          - "HEAD"
+          - "OPTIONS"
+        DefaultRootObject: "anotherindex.html"
+        HttpVersion: "http2"
+        Origins:
+        - DomainName:
+            Fn::Join:
+            - ""
+            - - Ref: "Bucket5"
+              - ".s3-website-"
+              - Ref: "AWS::Region"
+              - ".amazonaws.com"
+          Id: "s3Origin"
+          CustomOriginConfig:
+            OriginProtocolPolicy: "http-only"
+        PriceClass: "PriceClass_200"
+        ViewerCertificate:
+          AcmCertificateArn:
+            Ref: "Certificate2"
+          SslSupportMethod: "sni-only"
+  Bucket6:
+    Type: "AWS::S3::Bucket"
+  LogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: "/aws/lambda/myService-dev-myFunction2"
   Role:
     Type: "AWS::IAM::Role"
     Properties:
@@ -42,7 +196,7 @@ Resources:
         - - "arn:"
           - Ref: "AWS::Partition"
           - ":iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
-      Path: "/anotherPath/"
+      Path: "/"
       Policies:
       - PolicyDocument:
           Statement:
@@ -58,7 +212,7 @@ Resources:
                 - Ref: "AWS::Region"
                 - ":"
                 - Ref: "AWS::AccountId"
-                - ":log-group:/aws/lambda/myService-nonprod-definition:*"
+                - ":log-group:/aws/lambda/myService-dev-definition:*"
           - Effect: "Allow"
             Action:
             - "logs:PutLogEvents"
@@ -71,20 +225,16 @@ Resources:
                 - Ref: "AWS::Region"
                 - ":"
                 - Ref: "AWS::AccountId"
-                - ":log-group:/aws/lambda/myService-nonprod-definition:*"
+                - ":log-group:/aws/lambda/myService-dev-definition:*"
                 - ":*"
           Version: "2012-10-17"
-        PolicyName: "nonprod-myService-lambda"
+        PolicyName: "dev-myService-lambda"
       RoleName:
         Fn::Join:
         - ""
-        - - "myService-nonprod-"
+        - - "myService-dev-"
           - Ref: "AWS::Region"
           - "-lambdaRole"
-  LogGroup:
-    Type: "AWS::Logs::LogGroup"
-    Properties:
-      LogGroupName: "/aws/lambda/myService-nonprod-myFunction"
   Function:
     Type: "AWS::Lambda::Function"
     DependsOn:
@@ -93,26 +243,7 @@ Resources:
     Properties:
       Code:
         S3Bucket:
-          Ref: "Bucket"
-        S3Key:
-          Ref: "CodeLocationKey"
-      Handler: "org.http4k.serverless.lambda.LambdaFunction::handle"
-      Role:
-        Ref: "Role"
-      Runtime: "java8"
-  LogGroup2:
-    Type: "AWS::Logs::LogGroup"
-    Properties:
-      LogGroupName: "/aws/lambda/myService-nonprod-myFunction2"
-  Function2:
-    Type: "AWS::Lambda::Function"
-    DependsOn:
-    - "LogGroup2"
-    - "Role"
-    Properties:
-      Code:
-        S3Bucket:
-          Ref: "Bucket"
+          Ref: "Bucket6"
         S3Key:
           Ref: "CodeLocationKey2"
       Handler: "org.http4k.serverless.lambda.LambdaFunction::handle"
@@ -123,15 +254,10 @@ Resources:
         Variables:
           HTTP4K_BOOTSTRAP_CLASS: "handler"
       Timeout: 20
-      VpcConfig:
-        SecurityGroupIds:
-        - Ref: "SecurityGroup"
-        SubnetIds:
-          Ref: "Subnets"
   RestApi:
     Type: "AWS::ApiGateway::RestApi"
     Properties:
-      Name: "nonprod-myService"
+      Name: "dev-myService"
   Resource:
     Type: "AWS::ApiGateway::Resource"
     Properties:

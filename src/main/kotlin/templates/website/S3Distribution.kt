@@ -3,7 +3,9 @@ package templates.website
 import io.kloudformation.KloudFormation
 import io.kloudformation.Value
 import io.kloudformation.function.plus
-import io.kloudformation.property.aws.cloudfront.distribution.DistributionConfig
+import io.kloudformation.model.KloudFormationTemplate.Builder.Companion.awsRegion
+import io.kloudformation.property.aws.certificatemanager.certificate.DomainValidationOption
+import io.kloudformation.property.aws.cloudfront.distribution.*
 import io.kloudformation.resource.aws.certificatemanager.Certificate
 import io.kloudformation.resource.aws.certificatemanager.certificate
 import io.kloudformation.resource.aws.cloudfront.Distribution
@@ -16,23 +18,34 @@ enum class HttpMethod(val value: String){ HTTP1_1("http1.1"), HTTP2("http2") }
 enum class CloudfrontPriceClass(val value: String){ _100("PriceClass_100"), _200("PriceClass_200"), ALL("PriceClass_ALL") }
 
 class S3Distribution: Module {
-    class S3DistProps(var domain: Value<String>, var bucketRef: Value<String>, var defaultRootObject: Value<String>, var httpMethod: HttpMethod, var sslSupportMethod: SslSupportMethod, var priceClass: CloudfrontPriceClass): Props
+
+    class Predefined(
+            var bucketRef: Value<String>,
+            var rootObject: Value<String>
+    ): Properties
+
+    class Props(
+            var domain: Value<String>,
+            var httpMethod: HttpMethod = HttpMethod.HTTP2,
+            var sslSupportMethod: SslSupportMethod = SslSupportMethod.SNI,
+            var priceClass: CloudfrontPriceClass = CloudfrontPriceClass._200
+    ): Properties
 
     class Parts {
         val bucketCertificate: OptionalModification<Certificate.Builder, Certificate, CertificateProps> = optionalModification()
         val cloudFrontDistribution: OptionalModification<Distribution.Builder, Distribution, DistributionProps> = optionalModification()
     }
 
-    data class CertificateProps(var domain: Value<String>, var validationMethod: CertificationValidationMethod = CertificationValidationMethod.DNS): Props
-    data class DistributionProps(var config: DistributionConfig): Props
+    data class CertificateProps(var domain: Value<String>, var validationMethod: CertificationValidationMethod = CertificationValidationMethod.DNS): Properties
+    data class DistributionProps(var config: DistributionConfig): Properties
 
-    class Builder(val props: S3DistProps): ModuleBuilder<S3Distribution, Parts>(Parts()) {
+    class Builder(pre: Predefined, val props: Props): SubModuleBuilder<S3Distribution, Parts, Predefined, Props>(pre, Parts()) {
 
         override fun KloudFormation.buildModule(): Parts.() -> S3Distribution = {
             val cert = bucketCertificate(CertificateProps(props.domain)) { props ->
                 certificate(props.domain) {
-                    subjectAlternativeNames(kotlin.collections.listOf(props.domain))
-                    domainValidationOptions(kotlin.collections.listOf(io.kloudformation.property.aws.certificatemanager.certificate.DomainValidationOption(
+                    subjectAlternativeNames(listOf(props.domain))
+                    domainValidationOptions(listOf(DomainValidationOption(
                             domainName = props.domain,
                             validationDomain = props.domain
                     )))
@@ -40,27 +53,27 @@ class S3Distribution: Module {
                     modifyBuilder(props)
                 }
             }
-            val origin = io.kloudformation.property.aws.cloudfront.distribution.Origin(
+            val origin = Origin(
                     id = +"s3Origin",
-                    domainName = props.bucketRef + +".s3-website-" + io.kloudformation.model.KloudFormationTemplate.Builder.Companion.awsRegion + +".amazonaws.com",
-                    customOriginConfig = io.kloudformation.property.aws.cloudfront.distribution.CustomOriginConfig(
+                    domainName = pre.bucketRef + +".s3-website-" + awsRegion + +".amazonaws.com",
+                    customOriginConfig = CustomOriginConfig(
                             originProtocolPolicy = +"http-only"
                     )
             )
             val distributionProps = DistributionProps(DistributionConfig(
-                    origins = kotlin.collections.listOf(origin),
+                    origins = listOf(origin),
                     enabled = +true,
-                    aliases = +kotlin.collections.listOf(+"www." + props.domain, props.domain),
-                    defaultCacheBehavior = io.kloudformation.property.aws.cloudfront.distribution.DefaultCacheBehavior(
-                            allowedMethods = +kotlin.collections.listOf(+"GET", +"HEAD", +"OPTIONS"),
-                            forwardedValues = io.kloudformation.property.aws.cloudfront.distribution.ForwardedValues(queryString = +true),
+                    aliases = +listOf(+"www." + props.domain, props.domain),
+                    defaultCacheBehavior = DefaultCacheBehavior(
+                            allowedMethods = +listOf(+"GET", +"HEAD", +"OPTIONS"),
+                            forwardedValues = ForwardedValues(queryString = +true),
                             targetOriginId = origin.id,
                             viewerProtocolPolicy = +"allow-all"
                     ),
-                    defaultRootObject = props.defaultRootObject,
+                    defaultRootObject = pre.rootObject,
                     priceClass = +props.priceClass.value,
                     httpVersion = +props.httpMethod.value,
-                    viewerCertificate = io.kloudformation.property.aws.cloudfront.distribution.ViewerCertificate(acmCertificateArn = cert?.ref(), sslSupportMethod = +props.sslSupportMethod.value)
+                    viewerCertificate = ViewerCertificate(acmCertificateArn = cert?.ref(), sslSupportMethod = +props.sslSupportMethod.value)
             ))
             val cfDistribution = cloudFrontDistribution(distributionProps){ props ->
                 distribution(props.config) {

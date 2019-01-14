@@ -13,30 +13,24 @@ import io.kloudformation.resource.aws.s3.bucket
 import io.kloudformation.resource.aws.s3.bucketPolicy
 import templates.*
 
-data class S3Website(val bucket: Bucket, val policy: BucketPolicy?): Module, ExtraParts {
+data class S3Website(val bucket: Bucket, val policy: BucketPolicy? = null, val distribution: S3Distribution? = null): Module {
 
-    class Parts(
-        val s3Bucket: Modification<Bucket.Builder, Bucket, BucketProps> = modification(),
-        val s3BucketPolicy: OptionalModification<BucketPolicy.Builder, BucketPolicy, PolicyProps> = optionalModification()
-    ){
-        class BucketProps(var indexDocument: String = "index.html", var errorDocument: String = indexDocument): Props
-        class PolicyProps(var bucketRef: Value<String>, var policyDocument: PolicyDocument): Props
+    class Parts{
+        class BucketProps(var indexDocument: String = "index.html", var errorDocument: String = indexDocument): Properties
+        class PolicyProps(var bucketRef: Value<String>, var policyDocument: PolicyDocument): Properties
 
-        class DistributionProps(val domain: Value<String>): PartialProps<S3Distribution.S3DistProps,S3Website>{
-            override fun fullProps(extraProps: S3Website) = S3Distribution.S3DistProps(
-                    domain = domain,
-                    bucketRef = extraProps.bucket.ref(),
-                    defaultRootObject = extraProps.bucket.websiteConfiguration?.indexDocument ?: Value.Of("index.html"),
-                    httpMethod = HttpMethod.HTTP2,
-                    sslSupportMethod = SslSupportMethod.SNI,
-                    priceClass = CloudfrontPriceClass._200
-            )
+        fun s3Distribution(
+               domain: Value<String>,
+               httpMethod: HttpMethod = HttpMethod.HTTP2,
+               sslSupportMethod: SslSupportMethod = SslSupportMethod.SNI,
+               priceClass: CloudfrontPriceClass = CloudfrontPriceClass._200,
+               modifications: Modification<S3Distribution.Parts,S3Distribution,S3Distribution.Predefined>.() -> Unit = {}
+        ){
+            s3Distribution.invoke(S3Distribution.Props(domain, httpMethod, sslSupportMethod, priceClass), modifications)
         }
-
-        val s3Distribution = SubModule<S3Distribution, S3Distribution.Parts, S3Distribution.Builder, DistributionProps, S3Distribution.S3DistProps, S3Website>(
-                builder = { props -> S3Distribution.Builder(props)}
-        )
-
+        val s3Bucket = modification<Bucket.Builder, Bucket, BucketProps>()
+        val s3BucketPolicy = optionalModification<BucketPolicy.Builder, BucketPolicy, PolicyProps>()
+        val s3Distribution = SubModule({ pre: S3Distribution.Predefined, props: S3Distribution.Props -> S3Distribution.Builder(pre, props)})
     }
 
     class Builder: ModuleBuilder<S3Website, S3Website.Parts>(Parts()) {
@@ -66,9 +60,8 @@ data class S3Website(val bucket: Bucket, val policy: BucketPolicy?): Module, Ext
                     modifyBuilder(props)
                 }
             }
-            val website = S3Website(bucket, policy)
-            s3Distribution.module(website)()
-            website
+            val distribution = s3Distribution.module(S3Distribution.Predefined(bucket.ref(), bucket.websiteConfiguration?.indexDocument ?: +"index.html"))()
+            S3Website(bucket, policy, distribution)
         }
     }
 }
