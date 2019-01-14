@@ -26,12 +26,11 @@ class ServerlessFunction(val logGroup: LogGroup, val role: Role?, val function: 
     ): Props
 
     class HttpProps(
-            val method: String,
             val cors: HttpModule.CorsConfig? = null,
             val vpcEndpoint: Value<String>? = null
     ): PartialProps<HttpModule.HttpFullProps, Serverless.Globals> {
         override fun fullProps(extraProps: Serverless.Globals): HttpModule.HttpFullProps {
-            return HttpModule.HttpFullProps(method, extraProps.serviceName, extraProps.stage, cors, vpcEndpoint)
+            return HttpModule.HttpFullProps(extraProps.serviceName, extraProps.stage, cors, vpcEndpoint)
         }
     }
 
@@ -42,11 +41,11 @@ class ServerlessFunction(val logGroup: LogGroup, val role: Role?, val function: 
     ){
         data class LogGroupProps(var name: Value<String>): Props
         data class LambdaProps(var code: Code, var handler: Value<String>, var role: Value<String>, var runtime: Value<String>): Props
-
         val http = SubModules<HttpModule, HttpModule.Parts, HttpModule.Builder, HttpProps, HttpModule.HttpFullProps, Serverless.Globals>(
                 builder = { props -> HttpModule.Builder(props)}
         )
     }
+
     class Builder(
             val builderProps: FuncProps
     ): ModuleBuilder<ServerlessFunction, Parts>(Parts()){

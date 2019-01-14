@@ -9,12 +9,12 @@ import io.kloudformation.property.Tag
 import io.kloudformation.property.aws.ec2.securitygroup.Ingress
 import io.kloudformation.property.aws.lambda.function.code
 import io.kloudformation.resource.aws.ec2.securityGroup
+import templates.serverless.HttpModule
 import templates.serverless.Serverless
 import templates.serverless.ServerlessFunction
 import templates.serverless.serverless
 import templates.website.S3Website
 import templates.website.s3Website
-
 
 class Stack: StackBuilder {
     fun KloudFormation.s3WebsiteExamples(){
@@ -68,7 +68,7 @@ class Stack: StackBuilder {
     override fun KloudFormation.create() {
         //s3WebsiteExamples()
         val vpc = parameter<String>("VPCId")
-        val subnets = parameter<List<Value<String>>>("Subnets", "List<AWS::EC2::Subnet::Id>")
+        val subnets = parameter("Subnets", ParameterType.SubnetIdListParameter)
         val securityGroup = securityGroup(+"SG for lambda in VPC"){
             groupName("UniqueGroupName")
             vpcId(vpc.ref())
@@ -102,9 +102,13 @@ class Stack: StackBuilder {
                     runtime = +"java8")
             ){
                 modify {
-                    http(ServerlessFunction.HttpProps(
-                            method = "GET"
-                    ))
+                    http(ServerlessFunction.HttpProps()){
+                        modify {
+                            path(HttpModule.HttpPath(+"/myPath")){
+
+                            }
+                        }
+                    }
                     lambdaFunction {
                         modify {
                             timeout(20)

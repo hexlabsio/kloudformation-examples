@@ -94,6 +94,7 @@ class SubModules<Builds: Module, Parts, Builder: ModuleBuilder<Builds, Parts>, U
     }
     fun modules() = subModules
 }
+
 class SubModule<Builds: Module, Parts, Builder: ModuleBuilder<Builds, Parts>, UserProps: PartialProps<P,X>, P: Props, X: ExtraParts>(
         val builder: (P) -> Builder,
         private var modification: Modification<Parts,Builds,P> = modification(),

@@ -87,6 +87,9 @@ Resources:
       LogGroupName: "/aws/lambda/myService-nonprod-myFunction"
   Function:
     Type: "AWS::Lambda::Function"
+    DependsOn:
+    - "LogGroup"
+    - "Role"
     Properties:
       Code:
         S3Bucket:
@@ -103,6 +106,9 @@ Resources:
       LogGroupName: "/aws/lambda/myService-nonprod-myFunction2"
   Function2:
     Type: "AWS::Lambda::Function"
+    DependsOn:
+    - "LogGroup2"
+    - "Role"
     Properties:
       Code:
         S3Bucket:
@@ -126,3 +132,13 @@ Resources:
     Type: "AWS::ApiGateway::RestApi"
     Properties:
       Name: "nonprod-myService"
+  Resource:
+    Type: "AWS::ApiGateway::Resource"
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+        - "RestApi"
+        - "RootResourceId"
+      PathPart: "/myPath"
+      RestApiId:
+        Ref: "RestApi"
