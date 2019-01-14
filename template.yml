@@ -172,6 +172,9 @@ Resources:
           AcmCertificateArn:
             Ref: "Certificate2"
           SslSupportMethod: "sni-only"
+      Tags:
+      - Key: "A"
+        Value: "B"
   Bucket6:
     Type: "AWS::S3::Bucket"
   LogGroup:

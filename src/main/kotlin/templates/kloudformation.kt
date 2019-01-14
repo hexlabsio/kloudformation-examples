@@ -2,6 +2,7 @@ package templates
 
 import io.kloudformation.KloudFormation
 import io.kloudformation.StackBuilder
+import io.kloudformation.property.Tag
 import templates.serverless.HttpModule
 import templates.serverless.HttpPathModule
 import templates.serverless.ServerlessFunction
@@ -43,6 +44,11 @@ class Stack: StackBuilder {
             s3Distribution(+"klouds.io"){
                 props {
                     this.rootObject = +("another" + this.rootObject.value())
+                }
+                modify {
+                    cloudFrontDistribution {
+                        modify { tags(listOf(Tag(+"A", +"B"))) }
+                    }
                 }
             }
         }
