@@ -7,7 +7,7 @@ import io.kloudformation.model.KloudFormationTemplate.Builder.Companion.awsAccou
 import io.kloudformation.model.iam.*
 import io.kloudformation.resource.aws.apigateway.RestApi
 import io.kloudformation.resource.aws.apigateway.restApi
-import templates.*
+import io.kloudformation.module.*
 
 class HttpModule(val restApi: RestApi, val paths: List<HttpPathModule>) : Module {
     class Predefined(var serviceName: String, var stage: String): Properties

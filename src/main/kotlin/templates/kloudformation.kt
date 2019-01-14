@@ -2,6 +2,7 @@ package templates
 
 import io.kloudformation.KloudFormation
 import io.kloudformation.StackBuilder
+import io.kloudformation.module.value
 import io.kloudformation.property.Tag
 import templates.serverless.HttpModule
 import templates.serverless.HttpPathModule

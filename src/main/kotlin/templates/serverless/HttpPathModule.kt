@@ -4,7 +4,7 @@ import io.kloudformation.KloudFormation
 import io.kloudformation.Value
 import io.kloudformation.resource.aws.apigateway.Resource
 import io.kloudformation.resource.aws.apigateway.resource
-import templates.*
+import io.kloudformation.module.*
 
 class HttpPathModule(val resource: Resource): Module {
 

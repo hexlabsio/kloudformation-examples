@@ -12,7 +12,7 @@ import io.kloudformation.resource.aws.iam.Role
 import io.kloudformation.resource.aws.iam.role
 import io.kloudformation.resource.aws.s3.Bucket
 import io.kloudformation.resource.aws.s3.bucket
-import templates.*
+import io.kloudformation.module.*
 
 class Serverless(val deploymentBucket: Bucket, val globalRole: Role?, val functions: List<ServerlessFunction>): Module {
 

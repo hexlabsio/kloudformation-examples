@@ -9,7 +9,7 @@ import io.kloudformation.resource.aws.lambda.function
 import io.kloudformation.resource.aws.logs.LogGroup
 import io.kloudformation.resource.aws.logs.logGroup
 import io.kloudformation.resource.aws.s3.Bucket
-import templates.*
+import io.kloudformation.module.*
 
 class ServerlessFunction(val logGroup: LogGroup, val role: Role?, val function: Function, val httpEvents: List<HttpModule>) : Module {
 

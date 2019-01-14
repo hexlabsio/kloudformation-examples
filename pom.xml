@@ -31,7 +31,7 @@
         <dependency>
             <groupId>io.kloudformation</groupId>
             <artifactId>kloudformation</artifactId>
-            <version>0.1.49</version>
+            <version>0.1.53</version>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
